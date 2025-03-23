@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 import requests
 import json
 from typing import Optional
-
+import uvicorn
 # Load environment variables
 load_dotenv()
 
@@ -208,10 +208,14 @@ async def execute_code(request: CodeRequest):
             detail=f"Internal server error: {str(e)}"
         )
 
-if __name__ == "__main__":
-    import uvicorn
-    import os
 
-    port = int(os.getenv("PORT", 8000))  # Render assigns a dynamic port
+app = FastAPI()
+
+@app.get("/")
+def read_root():
+    return {"message": "Server is running!"}
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8000))  # Use Render's assigned port
     uvicorn.run(app, host="0.0.0.0", port=port)
 
