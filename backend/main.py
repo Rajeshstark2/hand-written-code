@@ -29,11 +29,12 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://handcode.onrender.com/"],  # React app URL
+    allow_origins=["https://handcode.onrender.com"],  # No trailing slash
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Configure Tesseract path (for Windows)
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
