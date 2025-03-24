@@ -26,15 +26,13 @@ app = FastAPI(
     description="API for extracting and executing handwritten code from images"
 )
 
-# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["https://handcode.onrender.com"],  # Specific origin
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicitly allow certain methods
+    allow_headers=["*"],  # Allow all headers
 )
-
 
 # Configure Tesseract path (for Windows)
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
