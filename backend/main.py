@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 import requests
 import json
 from typing import Optional
+import platform
 
 # Load environment variables
 load_dotenv()
@@ -43,8 +44,12 @@ app.add_middleware(
     max_age=3600,  # Cache preflight requests for 1 hour
 )
 
-# Configure Tesseract path (for Windows)
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# Configure Tesseract path based on OS
+if platform.system() == 'Windows':
+    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+else:
+    # On Linux, assume tesseract is installed in the system path
+    pytesseract.pytesseract.tesseract_cmd = 'tesseract'
 
 class CodeRequest(BaseModel):
     code: str
@@ -70,21 +75,57 @@ def preprocess_image(image: np.ndarray) -> np.ndarray:
 async def extract_code(file: UploadFile = File(...)):
     """Extract code from an uploaded image using OCR."""
     try:
+        # Validate file type
+        if not file.content_type.startswith('image/'):
+            raise HTTPException(
+                status_code=400,
+                detail="File must be an image"
+            )
+
         # Read and preprocess the image
         contents = await file.read()
+        if not contents:
+            raise HTTPException(
+                status_code=400,
+                detail="Empty file"
+            )
+
         nparr = np.frombuffer(contents, np.uint8)
         image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if image is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid image format"
+            )
+
         processed_image = preprocess_image(image)
         
         # Convert to PIL Image for Tesseract
         pil_image = Image.fromarray(processed_image)
         
-        # Extract text using Tesseract
-        text = pytesseract.image_to_string(pil_image)
-        
-        return {"text": text.strip()}
+        try:
+            # Extract text using Tesseract
+            text = pytesseract.image_to_string(pil_image)
+            if not text.strip():
+                raise HTTPException(
+                    status_code=400,
+                    detail="No text could be extracted from the image"
+                )
+            return {"text": text.strip()}
+        except Exception as e:
+            print(f"OCR Error: {str(e)}")  # Log the error
+            raise HTTPException(
+                status_code=500,
+                detail=f"OCR processing failed: {str(e)}"
+            )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"General Error: {str(e)}")  # Log the error
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error processing image: {str(e)}"
+        )
 
 @app.post("/detect-language/")
 async def detect_language(request: LanguageRequest):
