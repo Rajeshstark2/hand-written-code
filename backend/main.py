@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 import requests
 import json
 from typing import Optional
-import uvicorn
+
 # Load environment variables
 load_dotenv()
 
@@ -26,12 +26,13 @@ app = FastAPI(
     description="API for extracting and executing handwritten code from images"
 )
 
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://handcode.onrender.com"],  # Specific origin
+    allow_origins=["http://localhost:3000"],  # React app URL
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicitly allow certain methods
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Configure Tesseract path (for Windows)
@@ -207,14 +208,6 @@ async def execute_code(request: CodeRequest):
             detail=f"Internal server error: {str(e)}"
         )
 
-
-app = FastAPI()
-
-@app.get("/")
-def read_root():
-    return {"message": "Server is running!"}
-
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))  # Use Render's assigned port
-    uvicorn.run(app, host="0.0.0.0", port=port)
-
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
