@@ -32,11 +32,11 @@ function App() {
     formData.append('file', file);
 
     try {
-      const response = await axios.post('https://hand-written-code.onrender.com/extract-code/', formData);
+      const response = await axios.post('https://hand-written-code.vercel.app/extract-code/', formData);
       setCode(response.data.text);
       
       // Detect language with animation
-      const langResponse = await axios.post('https://hand-written-code.onrender.com/detect-language/', {
+      const langResponse = await axios.post('https://hand-written-code.vercel.app/detect-language/', {
         code: response.data.text
       });
       setLanguage(langResponse.data.language);
@@ -64,7 +64,7 @@ function App() {
     setOutput('');
 
     try {
-      const response = await axios.post('https://hand-written-code.onrender.com/execute-code/', {
+      const response = await axios.post('https://hand-written-code.vercel.app/execute-code/', {
         code,
         language
       });
