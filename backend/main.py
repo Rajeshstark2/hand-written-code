@@ -11,8 +11,6 @@ from dotenv import load_dotenv
 import requests
 import json
 from typing import Optional
-import platform
-import subprocess
 
 # Load environment variables
 load_dotenv()
@@ -28,64 +26,17 @@ app = FastAPI(
     description="API for extracting and executing handwritten code from images"
 )
 
-# Configure CORS with environment-based origins
-origins = [
-    "http://localhost:3000",  # Local development
-    "https://hand-written-code.onrender.com",  # Production URL
-    "http://localhost:8000",  # Local backend
-]
-
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["http://localhost:3000"],  # React app URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
-    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
-# Configure Tesseract path based on OS
-def verify_tesseract_installation():
-    """Verify Tesseract installation and return the correct path."""
-    try:
-        # Try to get Tesseract version
-        result = subprocess.run(['tesseract', '--version'], capture_output=True, text=True)
-        if result.returncode == 0:
-            print("Tesseract version:", result.stdout.split('\n')[0])
-            return 'tesseract'
-    except FileNotFoundError:
-        pass
-
-    # Check common installation paths
-    common_paths = [
-        r'C:\Program Files\Tesseract-OCR\tesseract.exe',  # Windows
-        '/usr/bin/tesseract',  # Linux
-        '/usr/local/bin/tesseract',  # Linux alternative
-        '/opt/homebrew/bin/tesseract',  # macOS
-    ]
-
-    for path in common_paths:
-        if os.path.exists(path):
-            print(f"Found Tesseract at: {path}")
-            return path
-
-    print("Warning: Tesseract not found in common locations")
-    print("Current working directory:", os.getcwd())
-    print("Directory contents:", os.listdir('/usr/bin'))
-    raise RuntimeError("Tesseract is not properly installed. Please ensure it's installed and accessible in the system PATH")
-
-# Set Tesseract path
-pytesseract.pytesseract.tesseract_cmd = verify_tesseract_installation()
-
-# Verify Tesseract installation
-try:
-    version = pytesseract.get_tesseract_version()
-    print(f"Tesseract version: {version}")  # Debug log
-except Exception as e:
-    print(f"Error: Tesseract is not properly installed: {str(e)}")
-    print("Please ensure Tesseract is installed and accessible in the system PATH")
-    print("Current Tesseract path:", pytesseract.pytesseract.tesseract_cmd)
+# Configure Tesseract path (for Windows)
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 class CodeRequest(BaseModel):
     code: str
@@ -111,57 +62,21 @@ def preprocess_image(image: np.ndarray) -> np.ndarray:
 async def extract_code(file: UploadFile = File(...)):
     """Extract code from an uploaded image using OCR."""
     try:
-        # Validate file type
-        if not file.content_type.startswith('image/'):
-            raise HTTPException(
-                status_code=400,
-                detail="File must be an image"
-            )
-
         # Read and preprocess the image
         contents = await file.read()
-        if not contents:
-            raise HTTPException(
-                status_code=400,
-                detail="Empty file"
-            )
-
         nparr = np.frombuffer(contents, np.uint8)
         image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        if image is None:
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid image format"
-            )
-
         processed_image = preprocess_image(image)
         
         # Convert to PIL Image for Tesseract
         pil_image = Image.fromarray(processed_image)
         
-        try:
-            # Extract text using Tesseract
-            text = pytesseract.image_to_string(pil_image)
-            if not text.strip():
-                raise HTTPException(
-                    status_code=400,
-                    detail="No text could be extracted from the image"
-                )
-            return {"text": text.strip()}
-        except Exception as e:
-            print(f"OCR Error: {str(e)}")  # Log the error
-            raise HTTPException(
-                status_code=500,
-                detail=f"OCR processing failed: {str(e)}"
-            )
-    except HTTPException:
-        raise
+        # Extract text using Tesseract
+        text = pytesseract.image_to_string(pil_image)
+        
+        return {"text": text.strip()}
     except Exception as e:
-        print(f"General Error: {str(e)}")  # Log the error
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error processing image: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/detect-language/")
 async def detect_language(request: LanguageRequest):
@@ -295,5 +210,4 @@ async def execute_code(request: CodeRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
