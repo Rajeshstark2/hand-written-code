@@ -48,8 +48,39 @@ app.add_middleware(
 if platform.system() == 'Windows':
     pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 else:
-    # On Linux, assume tesseract is installed in the system path
-    pytesseract.pytesseract.tesseract_cmd = 'tesseract'
+    # On Linux (including Render.com), try to find tesseract in common locations
+    possible_paths = [
+        '/usr/bin/tesseract',
+        '/usr/local/bin/tesseract',
+        '/opt/homebrew/bin/tesseract',  # macOS Homebrew
+        'tesseract'  # Try system PATH
+    ]
+    
+    tesseract_found = False
+    for path in possible_paths:
+        try:
+            if os.path.exists(path):
+                pytesseract.pytesseract.tesseract_cmd = path
+                tesseract_found = True
+                print(f"Found Tesseract at: {path}")  # Debug log
+                break
+        except Exception as e:
+            print(f"Error checking path {path}: {str(e)}")  # Debug log
+            continue
+    
+    if not tesseract_found:
+        print("Warning: Tesseract not found in common locations. Please ensure it's installed.")
+        print("Current working directory:", os.getcwd())
+        print("Directory contents:", os.listdir('/usr/bin'))
+
+# Verify Tesseract installation
+try:
+    version = pytesseract.get_tesseract_version()
+    print(f"Tesseract version: {version}")  # Debug log
+except Exception as e:
+    print(f"Error: Tesseract is not properly installed: {str(e)}")
+    print("Please ensure Tesseract is installed and accessible in the system PATH")
+    print("Current Tesseract path:", pytesseract.pytesseract.tesseract_cmd)
 
 class CodeRequest(BaseModel):
     code: str
