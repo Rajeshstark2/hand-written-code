@@ -26,13 +26,21 @@ app = FastAPI(
     description="API for extracting and executing handwritten code from images"
 )
 
-# Configure CORS
+# Configure CORS with environment-based origins
+origins = [
+    "http://localhost:3000",  # Local development
+    "https://hand-written-code.onrender.com",  # Production URL
+    "http://localhost:8000",  # Local backend
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # React app URL
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 # Configure Tesseract path (for Windows)
@@ -210,4 +218,5 @@ async def execute_code(request: CodeRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
