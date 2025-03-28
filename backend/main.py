@@ -12,6 +12,7 @@ import requests
 import json
 from typing import Optional
 import platform
+import subprocess
 
 # Load environment variables
 load_dotenv()
@@ -45,12 +46,37 @@ app.add_middleware(
 )
 
 # Configure Tesseract path based on OS
-if platform.system() == 'Windows':
-    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-else:
-    # In Docker/Linux environment, Tesseract is installed in the system path
-    pytesseract.pytesseract.tesseract_cmd = 'tesseract'
-    print("Using system Tesseract installation")  # Debug log
+def verify_tesseract_installation():
+    """Verify Tesseract installation and return the correct path."""
+    try:
+        # Try to get Tesseract version
+        result = subprocess.run(['tesseract', '--version'], capture_output=True, text=True)
+        if result.returncode == 0:
+            print("Tesseract version:", result.stdout.split('\n')[0])
+            return 'tesseract'
+    except FileNotFoundError:
+        pass
+
+    # Check common installation paths
+    common_paths = [
+        r'C:\Program Files\Tesseract-OCR\tesseract.exe',  # Windows
+        '/usr/bin/tesseract',  # Linux
+        '/usr/local/bin/tesseract',  # Linux alternative
+        '/opt/homebrew/bin/tesseract',  # macOS
+    ]
+
+    for path in common_paths:
+        if os.path.exists(path):
+            print(f"Found Tesseract at: {path}")
+            return path
+
+    print("Warning: Tesseract not found in common locations")
+    print("Current working directory:", os.getcwd())
+    print("Directory contents:", os.listdir('/usr/bin'))
+    raise RuntimeError("Tesseract is not properly installed. Please ensure it's installed and accessible in the system PATH")
+
+# Set Tesseract path
+pytesseract.pytesseract.tesseract_cmd = verify_tesseract_installation()
 
 # Verify Tesseract installation
 try:
